@@ -10,9 +10,14 @@ from django.utils.translation import ugettext_lazy as _
 from feincms.models import create_base_model
 from mptt.models import MPTTModel, MPTTModelBase
 
-from django.template.loader import render_to_string, find_template
+from django.template.loader import render_to_string, get_template
 from django.template.context import RequestContext
 from django.template import TemplateDoesNotExist
+try:
+    from django.template import engines
+    from django.template.backends.django import DjangoTemplates
+except ImportError:
+    engines = None
 
 from .models import create_content_types
 from . import settings as feincmstools_settings
@@ -324,11 +329,19 @@ class Content(models.Model):
 
     @staticmethod
     def _template_params(klass, base, region=None):
+        try:
+            base_model_name = base._meta.model_name
+        except AttributeError:
+            base_model_name = base._meta.module_name
+        try:
+            klass_model_name = klass._meta.model_name
+        except AttributeError:
+            klass_model_name = klass._meta.module_name
         return {
             'content_type_defining_app': base._meta.app_label,
-            'content_model_name': base._meta.module_name,
+            'content_model_name': base_model_name,
             'content_type_using_app': klass._meta.app_label,
-            'content_type_using_model': klass._meta.module_name,
+            'content_type_using_model': klass_model_name,
             'content_type_using_region': region,
         }
 
@@ -394,11 +407,21 @@ class Content(models.Model):
         Look for template in given path.
         Return path to template or None if not found.
         """
-        try:
-            find_template(path)
-            return path
-        except TemplateDoesNotExist:
-            return None
+        if engines is None:
+            try:
+                get_template(path)
+                return path
+            except TemplateDoesNotExist:
+                return None
+
+        for engine in engines.all():
+            if isinstance(engine, DjangoTemplates):
+                try:
+                    engine.get_template(path)
+                    return path
+                except TemplateDoesNotExist:
+                    pass
+        return None
 
 def LumpyContent(*args, **kwargs):
     from warnings import warn
