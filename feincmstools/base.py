@@ -11,7 +11,7 @@ from feincms.models import create_base_model
 from mptt.models import MPTTModel, MPTTModelBase
 
 from django.template.loader import render_to_string, find_template
-from django.template.context import RequestContext, Context
+from django.template.context import RequestContext
 from django.template import TemplateDoesNotExist
 
 from .models import create_content_types
@@ -293,7 +293,7 @@ class Content(models.Model):
         template = self.render_template or self._find_render_template_path(self.region)
         if not template:
             raise NotImplementedError('No template found for rendering %s content. I tried ["%s"].' % (self.__class__.__name__, '", "'.join(self._render_template_paths(self.region))))
-        context = Context()
+        context = {}
         if 'context' in kwargs:
             context.update(kwargs['context'])
         context['content'] = self
