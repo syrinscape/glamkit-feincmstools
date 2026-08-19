@@ -19,6 +19,7 @@ if hasattr(django, 'setup'):
 
 from django.db import models
 from django.http import HttpRequest
+from django.template import Context
 
 
 class FeinCMSBase(models.Model):
@@ -63,6 +64,18 @@ class RenderableContent(Content):
 
 
 class ContentRenderTests(unittest.TestCase):
+    def test_render_accepts_django_context(self):
+        supplied_context = Context({'supplied': 'shadowed-value'})
+        supplied_context.push()
+        supplied_context['supplied'] = 'context-value'
+        rendered = Content.render(
+            RenderableContent(),
+            request=HttpRequest(),
+            context=supplied_context,
+        )
+
+        self.assertEqual('context-value:content-value', rendered.strip())
+
     def test_render_passes_a_plain_mapping_to_django(self):
         rendered = Content.render(
             RenderableContent(),

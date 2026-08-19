@@ -295,7 +295,14 @@ class Content(models.Model):
             raise NotImplementedError('No template found for rendering %s content. I tried ["%s"].' % (self.__class__.__name__, '", "'.join(self._render_template_paths(self.region))))
         context = {}
         if 'context' in kwargs:
-            context.update(kwargs['context'])
+            supplied_context = kwargs['context']
+            if hasattr(supplied_context, 'flatten'):
+                context.update(supplied_context.flatten())
+            elif hasattr(supplied_context, 'dicts'):
+                for context_dict in supplied_context.dicts:
+                    context.update(context_dict)
+            else:
+                context.update(supplied_context)
         context['content'] = self
         if hasattr(self, 'extra_context') and callable(self.extra_context):
             context.update(self.extra_context(kwargs['request']))
