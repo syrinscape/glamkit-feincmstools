@@ -38,15 +38,36 @@ from django.template import Context
 
 
 class FeinCMSBase(models.Model):
+    @classmethod
+    def register_regions(cls, *regions):
+        cls._feincms_all_regions = [
+            type('Region', (), {'key': region[0]})()
+            for region in regions
+        ]
+
+    @classmethod
+    def create_content_type(cls, content_type, **kwargs):
+        cls.registrations.append((content_type, kwargs))
+        return type(content_type.__name__, (), {})
+
     class Meta:
         abstract = True
         app_label = 'tests'
 
 
-class MPTTModel(models.Model):
-    class Meta:
-        abstract = True
-        app_label = 'tests'
+class MPTTModelBase(models.base.ModelBase):
+    pass
+
+
+class MPTTModelMeta:
+    abstract = True
+    app_label = 'tests'
+
+
+MPTTModel = MPTTModelBase('MPTTModel', (models.Model,), {
+    '__module__': __name__,
+    'Meta': MPTTModelMeta,
+})
 
 
 feincms = types.ModuleType('feincms')
@@ -59,12 +80,16 @@ sys.modules['feincms.models'] = feincms_models
 mptt = types.ModuleType('mptt')
 mptt_models = types.ModuleType('mptt.models')
 mptt_models.MPTTModel = MPTTModel
-mptt_models.MPTTModelBase = models.base.ModelBase
+mptt_models.MPTTModelBase = MPTTModelBase
 mptt.models = mptt_models
 sys.modules['mptt'] = mptt
 sys.modules['mptt.models'] = mptt_models
 
-from feincmstools.base import Content
+from feincmstools.base import (
+    Content,
+    FeinCMSDocument,
+    HierarchicalFeinCMSDocument,
+)
 
 
 class RenderableContent(Content):
@@ -127,6 +152,38 @@ class ContentRenderTests(unittest.TestCase):
         )
 
         self.assertEqual('context-value:content-value', rendered.strip())
+
+
+class DocumentRegistrationTests(unittest.TestCase):
+    def test_concrete_documents_register_regions_and_content_types(self):
+        class ExampleContent:
+            pass
+
+        document_bases = (
+            HierarchicalFeinCMSDocument,
+            FeinCMSDocument,
+        )
+        for document_base in document_bases:
+            class RegisteredDocument(document_base):
+                feincms_regions = (
+                    ('main', 'Main'),
+                )
+                registrations = []
+
+                @classmethod
+                def content_types_by_region(cls, region):
+                    return ((None, (ExampleContent,)),)
+
+                class Meta:
+                    app_label = 'tests'
+
+            self.assertEqual([
+                (ExampleContent, {
+                    'class_name': None,
+                    'optgroup': None,
+                    'regions': {'main'},
+                }),
+            ], RegisteredDocument.registrations)
 
 
 class ContentTemplateDetectionTests(unittest.TestCase):

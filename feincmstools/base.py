@@ -37,7 +37,8 @@ class FeinCMSDocumentBase(models.base.ModelBase):
         new_class._register()
         return new_class
 
-class FeinCMSDocument(create_base_model()):
+class FeinCMSDocument(
+        create_base_model(), metaclass=FeinCMSDocumentBase):
     """
     A model which can have FeinCMS content chunks attached to it.
 
@@ -195,8 +196,6 @@ class FeinCMSDocument(create_base_model()):
 
     #PRIVATE
 
-    __metaclass__ = FeinCMSDocumentBase
-
     @classmethod
     def _get_content_types_by_region(cls):
         """
@@ -240,14 +239,15 @@ class FeinCMSDocument(create_base_model()):
 class HierarchicalFeinCMSDocumentBase(FeinCMSDocumentBase, MPTTModelBase):
     pass
 
-class HierarchicalFeinCMSDocument(FeinCMSDocument, MPTTModel):
+class HierarchicalFeinCMSDocument(
+        FeinCMSDocument,
+        MPTTModel,
+        metaclass=HierarchicalFeinCMSDocumentBase):
     """
    FeinCMSDocument arranged hierarchically via MPTT.
 
     This defines and handles the 'parent' field in a similar way to feincms.Page
     """
-
-    __metaclass__ = HierarchicalFeinCMSDocumentBase
 
     parent = models.ForeignKey('self', verbose_name=_('Parent'), blank=True,
                                null=True, related_name='children')
